@@ -19,16 +19,21 @@ const chainConfig = {
         "easContractAddress": "0xC2679fBD37d54388Ce493F1DB75320D236e1815e",
         "schemaRegistry": "0x0a7E2Ff54e76B8E6659aedc9103FB21c038050D0",
 
-        // "schemaUid": "0x67a2b544148126495d05867459f2cfedc79fc88aea5229db128ab0f51bb31dd2",
-        // "schemaString": "string thisisjustastring3",
-        // "data": [{ name: "thisisjustastring3", value: "adsf asdf", type: "string" }],
-        "schemaUid": "0xb16fa048b0d597f5a821747eba64efa4762ee5143e9a80600d0005386edfc995",
-        "schemaString": "uint256 eventId, uint8 voteIndex",
+        "schemaUid": "0x585dd47899a09ecf58b34a91df3e1a4f31af9a6076fb993fc0d4262f64405ede",
+        "schemaString": "string theName, uint256 theAge",
         "data": [
-            { name: "eventId", value: 1, type: "uint256" },
-            { name: "voteIndex", value: 1, type: "uint8" },
+            { name: "theName", value: "michael jordan", type: "string" },
+            { name: "theAge", value: 60, type: "uint256" }
         ],
-        "attestationUid": "0x2368ee0ea276858809590fd0dca6ac3d422c8aac05ed3e2793e5b519966d6e9b",
+
+        // //settings from docs
+        // "schemaUid": "0xb16fa048b0d597f5a821747eba64efa4762ee5143e9a80600d0005386edfc995",
+        // "schemaString": "uint256 eventId, uint8 voteIndex",
+        // "data": [
+        //     { name: "eventId", value: 1, type: "uint256" },
+        //     { name: "voteIndex", value: 1, type: "uint8" },
+        // ],
+        // "attestationUid": "0x2368ee0ea276858809590fd0dca6ac3d422c8aac05ed3e2793e5b519966d6e9b",
     }
 }
 
@@ -116,13 +121,13 @@ function EAStest() {
 
         schemaRegistry.connect(signer);
 
-        const schema = "string thisisjustastring4";
-        const resolverAddress = schemaRegistryContractAddress; // Sepolia 0.26
+        const schema = "string theName, uint256 theAge";
+        // const resolverAddress = schemaRegistryContractAddress; // Sepolia 0.26
         const revocable = true;
 
         try {
             const transaction = await schemaRegistry.register(
-                { schema, resolverAddress, revocable, },
+                { schema, revocable, },
                 // { gasLimit: 50000000 }
             );
 
