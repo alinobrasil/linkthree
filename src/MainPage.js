@@ -2,6 +2,7 @@ import React from "react";
 import styled from "styled-components";
 import { useLinkedIn } from "react-linkedin-login-oauth2";
 import linkedin from "react-linkedin-login-oauth2/assets/linkedin.png";
+import EAStest from "./components/EAStest";
 // import GitHubLogin from 'react-github-login';
 
 function MainPage() {
@@ -54,6 +55,10 @@ function MainPage() {
                 )}
                 {errorMessage && <div>{errorMessage}</div>}
             </Wrapper>
+
+
+
+            <EAStest />
 
         </div>
     );
