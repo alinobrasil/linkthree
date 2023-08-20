@@ -4,6 +4,9 @@ import { ethers, utils } from 'ethers';
 import delegateContractArtifact from '../constants/PermissionedEIP712Proxy.json'
 
 const PRIVATE_KEY = '40017602f8578a171a66d443df8780ca3b2645e73f1ba701df06969e028ff3fc'
+const attesterAddress = "0x9343e38cFfccCb4996C76eD56C97c7f27560917b"
+const recipientAddress = "0xFC78985EBC569796106dd4b350a3e0Ac6c5c110c"
+
 const chainConfig = {
     "xdcTest": {
         "rpcUrl": "https://erpc.apothem.network",
@@ -15,6 +18,8 @@ const chainConfig = {
         "attestationUid": "",
     },
     "sepolia": {
+        "chainId": 11155111,
+        "delegateContractAddress": "0xEf94a35D43194787Fed6793790aD330d89DA42A7",
         // "rpcUrl": 'https://eth-sepolia.g.alchemy.com/v2/nhlteAOKtzO7rSq44OUNOVixQph-nSjU',
         "rpcUrl": "https://sepolia.infura.io/v3/cb170dd391aa4fde91f165b7d943a197",
         "easContractAddress": "0xC2679fBD37d54388Ce493F1DB75320D236e1815e",
@@ -27,20 +32,10 @@ const chainConfig = {
             { name: "theAge", value: 60, type: "uint256" }
         ],
         "attestationUid": "0x462cb0345873581778faa65de77d7876c8533c68d457cedfac1cee229d08abb7",
-
-        // //settings from docs
-        // "schemaUid": "0xb16fa048b0d597f5a821747eba64efa4762ee5143e9a80600d0005386edfc995",
-        // "schemaString": "uint256 eventId, uint8 voteIndex",
-        // "data": [
-        //     { name: "eventId", value: 1, type: "uint256" },
-        //     { name: "voteIndex", value: 1, type: "uint8" },
-        // ],
-        // "attestationUid": "0x2368ee0ea276858809590fd0dca6ac3d422c8aac05ed3e2793e5b519966d6e9b",
     }
 }
 
 const config = chainConfig["sepolia"];
-
 
 function EAStest() {
     const EASContractAddress = config.easContractAddress
@@ -65,111 +60,74 @@ function EAStest() {
         console.log("Delegated Attestation....")
         //**Create Attestation Request using EAS SDK**
         const schemaEncoder = new SchemaEncoder("string theName, uint256 theAge");
+        const rawData = [
+            { name: "theName", value: "tracy mcgrady", type: "string" },
+            { name: "theAge", value: 44, type: "uint256" },
+        ];
+
         const encodedData = schemaEncoder.encodeData(
-            [
-                { name: "theName", value: "tracy mcgrady", type: "string" },
-                { name: "theAge", value: 44, type: "uint256" },
-            ],
+            rawData
         );
-        console.log("encoded  data using EAS SDK: tmac 44 ")
-
-        const attestationRequestData = {
-            recipient: "0xd023c65d8D0b38c0B173283449450A6c4a97C6c5",
-            expirationTime: 0,
-            revocable: true, // Be aware that if your schema is not revocable, this MUST be false
-            refUID: null,
-            data: encodedData,
-            value: 0
-        }
-
-        //create signature *********************************
-        console.log("creating signature....")
-        // EIP-712 types 
-        const domain = {
-            name: 'My DApp',
-            version: '1.0',
-            chainId: 1,
-            verifyingContract: "0xEf94a35D43194787Fed6793790aD330d89DA42A7"
-        };
 
         const types = {
-            DelegatedProxyAttestationRequest: [
-                { name: 'schema', type: 'bytes32' },
-                { name: 'data', type: 'AttestationRequestData' },
-                { name: 'attester', type: 'address' }
-            ]
+            DataElement: [
+                { name: "name", type: "string" },
+                { name: "value", type: "string" },
+                { name: "type", type: "string" },
+            ],
+            AttestationRequestData: [
+                { name: "recipient", type: "address" },
+                { name: "expirationTime", type: "uint64" },
+                { name: "revocable", type: "bool" },
+                { name: "refUID", type: "bytes32" },
+                { name: "data", type: "DataElement[]" },
+                { name: "value", type: "uint256" },
+            ],
         };
 
-        // Struct data 
-        const value = {
-            schema: "0x585dd47899a09ecf58b34a91df3e1a4f31af9a6076fb993fc0d4262f64405ede",
-            data: encodedData,
-            attester: wallet.address
+        const domainData = {
+            name: "PermissionedEIP712Proxy",
+            version: "1",
+            chainId: config.chainId,
+            verifyingContract: config.delegateContractAddress,
         };
 
+        const zeroBytes32 = '0x0000000000000000000000000000000000000000000000000000000000000000'
 
-        // Hash struct according to EIP-712 
-        const hash = ethers.utils.keccak256(
-            ethers.utils.toUtf8Bytes(
-                JSON.stringify(domain) +
-                JSON.stringify(types) +
-                JSON.stringify(value)
-            )
-        );
+        const message = {
+            recipient: recipientAddress,
+            expirationTime: 0,
+            revocable: true,
+            refUID: zeroBytes32, // Zero address for refUID
+            data: rawData,
+            value: 0,
+        };
 
-        // Sign the hash 
-        //   const wallet = new ethers.Wallet(privateKey);
-        const signature = await wallet.signMessage(ethers.utils.arrayify(hash));
-        console.log("Signature: ", signature)
+        let signature
+        try {
+            signature = await wallet._signTypedData(domainData, types, message);
 
-
-
-        // create the delegated attestation request **********************************
-        // call the proxy eip712 delegated attestatoin contract's function
-        const delegatedAttestationRequest = {
-            schema: "0x585dd47899a09ecf58b34a91df3e1a4f31af9a6076fb993fc0d4262f64405ede",
-            data: attestationRequestData,
-            signature: signature,
-            attester: "0x9343e38cFfccCb4996C76eD56C97c7f27560917b"
+            console.log("signature: ", signature)
+        } catch (e) {
+            console.log(e)
         }
 
-        console.log("delegatedAttestationRequest: ", delegatedAttestationRequest)
+        const request = {
+            schema: config.schemaUid, // bytes32
+            data: message,
+            signature: signature, // bytes 
+            attester: signer.address, // address
+            deadline: 0 // uint64
+        }
 
-        const encoded = utils.defaultAbiCoder.encode(
-            ['bytes32', '(address,uint64,bool,bytes32,bytes,uint256)', 'bytes', 'address'],
-            [delegatedAttestationRequest.schema, attestationRequestData, delegatedAttestationRequest.signature, delegatedAttestationRequest.attester]
-        )
+        console.log("Signer address: ", signer.address)
 
-        const wallet2 = new ethers.Wallet("58ef3f5f916edf02d3dc98cf61b23d07d4d81e39e44aca0106ee12adedd36a68");
-        const signer2 = wallet2.connect(provider);
-        console.log("signer2's address: ", signer2.address)
+        const delegateContract = new ethers.Contract(config.delegateContractAddress, delegateContractArtifact.abi, signer);
 
-        // address: 0xFC78985EBC569796106dd4b350a3e0Ac6c5c110c
-        // privkey: 58ef3f5f916edf02d3dc98cf61b23d07d4d81e39e44aca0106ee12adedd36a68
-
-        // ethers and contract ABI imports 
-
-        const abi = delegateContractArtifact.abi;
-
-        const delegateContract = new ethers.Contract('0xEf94a35D43194787Fed6793790aD330d89DA42A7', abi, signer2); //sign with a different address
-        console.log("delegateContract address: ", delegateContract.address)
-
-        // // Build request object
-        // const request = {
-        //     schema: config.schemaUid,
-        //     data: attestationRequestData,
-        //     signature: signature,
-        //     attester: signer.address
-        // }
 
         try {
-            // Call contract function
-            const tx = await delegateContract.attestByDelegation(encoded)
-
-            // Wait for transaction  
-            const attestationUid = await tx.wait();
-
-            console.log("new attestation uid: ", attestationUid);
+            const uid = await delegateContract.attestByDelegation(request);
+            console.log("delegate attestation uid: ", uid)
         } catch (e) {
             console.log(e)
         }
